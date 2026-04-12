@@ -1,0 +1,36 @@
+# Audio data
+data/audio/
+data/careful_audio/
+
+# Results and checkpoints
+results/
+outputs/
+checkpoints/
+logs/
+wandb/
+runs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Large model artifacts
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Jupyter
+.ipynb_checkpoints/
