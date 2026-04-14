@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence
 
+import soundfile as sf
+
 from .metrics import cer, wer
 
 
@@ -60,8 +62,12 @@ class RealWhisperBackend:
         self.model = WhisperForConditionalGeneration.from_pretrained(cfg.model_name_or_path)
 
         if cfg.language:
-            forced_decoder_ids = self.processor.get_decoder_prompt_ids(language=cfg.language, task=cfg.task)
+            forced_decoder_ids = self.processor.get_decoder_prompt_ids(
+                language=cfg.language,
+                task=cfg.task,
+            )
             self.model.generation_config.forced_decoder_ids = forced_decoder_ids
+
         self.model.config.use_cache = False
 
     def _build_dataset(
@@ -70,28 +76,49 @@ class RealWhisperBackend:
         audio_paths: Sequence[str],
         text_column: str,
     ):
-        from datasets import Audio, Dataset
+        from datasets import Dataset
+        import librosa
+        import numpy as np
 
         examples = []
         for row, resolved_audio_path in zip(rows, audio_paths):
             item = dict(row)
-            item["audio"] = resolved_audio_path
+            item["audio_path"] = resolved_audio_path
             examples.append(item)
 
         ds = Dataset.from_list(examples)
-        ds = ds.cast_column("audio", Audio(sampling_rate=16000))
-
         processor = self.processor
+        target_sr = 16000
 
-        def _prep(example):
-            audio = example["audio"]
-            example["input_features"] = processor.feature_extractor(
-                audio["array"], sampling_rate=audio["sampling_rate"]
+        def _prep(example: Dict[str, str]) -> Dict[str, List[int] | List[float]]:
+            audio_array, sampling_rate = sf.read(example["audio_path"])
+
+            if hasattr(audio_array, "ndim") and audio_array.ndim > 1:
+                audio_array = np.mean(audio_array, axis=1)
+
+            audio_array = np.asarray(audio_array, dtype=np.float32)
+
+            if sampling_rate != target_sr:
+                audio_array = librosa.resample(
+                    audio_array,
+                    orig_sr=sampling_rate,
+                    target_sr=target_sr,
+                )
+                sampling_rate = target_sr
+
+            input_features = processor.feature_extractor(
+                audio_array,
+                sampling_rate=sampling_rate,
             ).input_features[0]
-            example["labels"] = processor.tokenizer(example[text_column]).input_ids
-            return example
 
-        return ds.map(_prep, remove_columns=[])
+            labels = processor.tokenizer(example[text_column]).input_ids
+
+            return {
+                "input_features": input_features,
+                "labels": labels,
+            }
+
+        return ds.map(_prep, remove_columns=ds.column_names)
 
     def _data_collator(self):
         processor = self.processor
@@ -129,7 +156,11 @@ class RealWhisperBackend:
         from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
 
         train_ds = self._build_dataset(train_rows, train_audio_paths, text_column=text_column)
-        dev_ds = self._build_dataset(dev_rows, dev_audio_paths, text_column=text_column)
+        dev_ds = (
+            self._build_dataset(dev_rows, dev_audio_paths, text_column=text_column)
+            if len(dev_rows) > 0 and len(dev_audio_paths) > 0
+            else None
+        )
         test_ds = self._build_dataset(test_rows, test_audio_paths, text_column=text_column)
 
         processor = self.processor
@@ -146,6 +177,10 @@ class RealWhisperBackend:
             label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
             return {"wer": wer(label_str, pred_str), "cer": cer(label_str, pred_str)}
 
+        has_eval = dev_ds is not None and len(dev_ds) > 0
+        eval_strategy = self.cfg.eval_strategy if has_eval else "no"
+        save_strategy = self.cfg.save_strategy if has_eval else "no"
+
         training_args = Seq2SeqTrainingArguments(
             output_dir=str(output_dir),
             per_device_train_batch_size=self.cfg.per_device_train_batch_size,
@@ -155,8 +190,8 @@ class RealWhisperBackend:
             weight_decay=self.cfg.weight_decay,
             warmup_ratio=self.cfg.warmup_ratio,
             num_train_epochs=self.cfg.num_train_epochs,
-            evaluation_strategy=self.cfg.eval_strategy,
-            save_strategy=self.cfg.save_strategy,
+            eval_strategy=eval_strategy,
+            save_strategy=save_strategy,
             logging_strategy=self.cfg.logging_strategy,
             logging_steps=self.cfg.logging_steps,
             save_total_limit=self.cfg.save_total_limit,
@@ -173,9 +208,9 @@ class RealWhisperBackend:
             model=self.model,
             args=training_args,
             train_dataset=train_ds,
-            eval_dataset=dev_ds,
+            eval_dataset=dev_ds if has_eval else None,
             data_collator=self._data_collator(),
-            tokenizer=processor.feature_extractor,
+            processing_class=processor,
             compute_metrics=compute_metrics,
         )
 
