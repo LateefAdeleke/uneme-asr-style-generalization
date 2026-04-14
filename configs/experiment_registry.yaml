@@ -1,0 +1,212 @@
+experiments:
+  E1:
+    experiment_id: "E1_nat2nat_main_noXfer"
+    description: "Naturalistic-only baseline evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "naturalistic"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train_naturalistic.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E1_nat2nat_main_noXfer"
+
+  E2:
+    experiment_id: "E2_cons2nat_main_noXfer"
+    description: "Constrained-only training evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "constrained"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train_constrained.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E2_cons2nat_main_noXfer"
+
+  E3:
+    experiment_id: "E3_mix2nat_main_noXfer"
+    description: "Mixed-style training evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "mixed"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E3_mix2nat_main_noXfer"
+
+  E4:
+    experiment_id: "E4_nat2cons_rev_noXfer"
+    description: "Naturalistic-only training evaluated on constrained speech"
+    split_regime: "reverse_aux"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "naturalistic"
+    dev_condition: "naturalistic"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/reverse_aux/train_naturalistic.csv"
+    dev_manifest: "data/metadata/reverse_aux/dev_naturalistic.csv"
+    test_manifest: "data/metadata/reverse_aux/test_constrained.csv"
+    output_dir: "results/E4_nat2cons_rev_noXfer"
+
+  E5:
+    experiment_id: "E5_mix2cons_aux_noXfer"
+    description: "Mixed-style training evaluated on constrained speech"
+    split_regime: "mixed_to_constrained_aux"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "mixed"
+    dev_condition: "mixed"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/mixed_to_constrained_aux/train.csv"
+    dev_manifest: "data/metadata/mixed_to_constrained_aux/dev.csv"
+    test_manifest: "data/metadata/mixed_to_constrained_aux/test_constrained.csv"
+    output_dir: "results/E5_mix2cons_aux_noXfer"
+
+  E6:
+    experiment_id: "E6_nat2nat_main_xfer"
+    description: "Transfer + naturalistic-only training evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "naturalistic"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train_naturalistic.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E6_nat2nat_main_xfer"
+
+  E7:
+    experiment_id: "E7_cons2nat_main_xfer"
+    description: "Transfer + constrained-only training evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "constrained"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train_constrained.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E7_cons2nat_main_xfer"
+
+  E8:
+    experiment_id: "E8_mix2nat_main_xfer"
+    description: "Transfer + mixed-style training evaluated on naturalistic speech"
+    split_regime: "main"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "mixed"
+    dev_condition: "naturalistic"
+    test_condition: "naturalistic"
+    train_manifest: "data/metadata/main/train.csv"
+    dev_manifest: "data/metadata/main/dev_naturalistic.csv"
+    test_manifest: "data/metadata/main/test_naturalistic.csv"
+    output_dir: "results/E8_mix2nat_main_xfer"
+
+  E9:
+    experiment_id: "E9_nat2cons_rev_xfer"
+    description: "Transfer + naturalistic-only training evaluated on constrained speech"
+    split_regime: "reverse_aux"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "naturalistic"
+    dev_condition: "naturalistic"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/reverse_aux/train_naturalistic.csv"
+    dev_manifest: "data/metadata/reverse_aux/dev_naturalistic.csv"
+    test_manifest: "data/metadata/reverse_aux/test_constrained.csv"
+    output_dir: "results/E9_nat2cons_rev_xfer"
+
+  E10:
+    experiment_id: "E10_mix2cons_aux_xfer"
+    description: "Transfer + mixed-style training evaluated on constrained speech"
+    split_regime: "mixed_to_constrained_aux"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "mixed"
+    dev_condition: "mixed"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/mixed_to_constrained_aux/train.csv"
+    dev_manifest: "data/metadata/mixed_to_constrained_aux/dev.csv"
+    test_manifest: "data/metadata/mixed_to_constrained_aux/test_constrained.csv"
+    output_dir: "results/E10_mix2cons_aux_xfer"
+
+defaults:
+  model_family: "whisper"
+  transfer_condition: "no_transfer"
+  random_seed: 42
+  num_workers: 4
+  save_predictions: true
+  save_metrics_json: true
+  save_per_utterance_outputs: true
+  validate_audio_paths: true
+
+models:
+  whisper:
+    model_type: "seq2seq"
+    pretrained_model_name_or_path: "openai/whisper-small"
+    processor_name_or_path: "openai/whisper-small"
+    language: null
+    task: "transcribe"
+    freeze_encoder: false
+    use_fp16: true
+
+  wav2vec2_ctc:
+    model_type: "ctc"
+    pretrained_model_name_or_path: "facebook/wav2vec2-xls-r-300m"
+    processor_name_or_path: "facebook/wav2vec2-xls-r-300m"
+    use_fp16: true
+
+transfer_setups:
+  no_transfer:
+    enabled: false
+    source_checkpoint: null
+    notes: "Train/fine-tune directly on target-language data only"
+
+  cross_lingual_transfer:
+    enabled: true
+    source_checkpoint: "REPLACE_WITH_SOURCE_CHECKPOINT"
+    notes: "Initialize from cross-lingually adapted checkpoint before target-language fine-tuning"
+
+training:
+  output_root: "results"
+  logging_root: "results/logs"
+  evaluation_metric_for_best_model: "wer"
+  greater_is_better: false
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 1
+  num_train_epochs: 20
+  save_total_limit: 2
+  early_stopping_patience: 3
+  evaluation_strategy: "epoch"
+  save_strategy: "epoch"
+  logging_strategy: "steps"
+  logging_steps: 25
+
+data:
+  master_metadata_path: "data/metadata/master/metadata_with_all_splits_clean.csv"
+  audio_path_column: "audio_path"
+  text_column: "transcription_norm"
+  utt_id_column: "utt_id"
+  speaker_id_column: "speaker_id"
+  session_id_column: "session_id"
+  style_column: "style"
+  style_bin_column: "style_bin"
+
+reporting:
+  aggregate_results_csv: "results/aggregate_results.csv"
+  main_plot_path: "results/figures/main_comparison.png"
+  transfer_plot_path: "results/figures/transfer_comparison.png"
+  auxiliary_plot_path: "results/figures/auxiliary_comparison.png"
