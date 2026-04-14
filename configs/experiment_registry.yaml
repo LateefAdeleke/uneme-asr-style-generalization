@@ -173,7 +173,8 @@ transfer_setups:
 
   cross_lingual_transfer:
     enabled: true
-    source_checkpoint: "REPLACE_WITH_SOURCE_CHECKPOINT"
+    # TEMPORARY for pipeline validation only: replace with the saved Yoruba-adapted Whisper checkpoint before real E6-E10 runs.
+    source_checkpoint: "openai/whisper-small"
     notes: "Initialize from cross-lingually adapted checkpoint before target-language fine-tuning"
 
 training:

@@ -22,8 +22,10 @@ class MinimalWhisperBackend:
 @dataclass
 class WhisperTrainingConfig:
     model_name_or_path: str
+    init_model_name_or_path: str
     language: str | None
     task: str
+    transfer_condition: str
     learning_rate: float
     weight_decay: float
     warmup_ratio: float
@@ -59,7 +61,7 @@ class RealWhisperBackend:
         self.WhisperForConditionalGeneration = WhisperForConditionalGeneration
 
         self.processor = WhisperProcessor.from_pretrained(cfg.model_name_or_path)
-        self.model = WhisperForConditionalGeneration.from_pretrained(cfg.model_name_or_path)
+        self.model = WhisperForConditionalGeneration.from_pretrained(cfg.init_model_name_or_path)
 
         if cfg.language:
             forced_decoder_ids = self.processor.get_decoder_prompt_ids(

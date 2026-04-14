@@ -61,13 +61,60 @@ def _select_text_column(data_cfg: Dict[str, Any], runtime: Dict[str, Any], sampl
     raise KeyError(f"None of the candidate text columns were found in manifest columns: {candidates}")
 
 
-def _build_training_config(registry: Dict[str, Any], runtime: Dict[str, Any]) -> WhisperTrainingConfig:
+def _resolve_transfer_checkpoint(
+    project_root: Path,
+    transfer_cfg: Dict[str, Any],
+    transfer_condition: str,
+    *,
+    allow_placeholder: bool,
+) -> str | None:
+    if transfer_condition != "cross_lingual_transfer":
+        return None
+
+    checkpoint = transfer_cfg.get("source_checkpoint")
+    if not checkpoint or checkpoint == "REPLACE_WITH_SOURCE_CHECKPOINT":
+        if allow_placeholder:
+            return None
+        raise ValueError(
+            "cross_lingual_transfer requires a concrete source_checkpoint in configs/experiment_registry.yaml"
+        )
+
+    checkpoint_path = Path(str(checkpoint))
+    if checkpoint_path.is_absolute():
+        return str(checkpoint_path)
+
+    repo_relative_path = (project_root / checkpoint_path).resolve()
+    if repo_relative_path.exists():
+        return str(repo_relative_path)
+
+    return str(checkpoint)
+
+
+def _build_training_config(
+    registry: Dict[str, Any],
+    runtime: Dict[str, Any],
+    *,
+    smoke_test: bool,
+    project_root: Path,
+    exp: Dict[str, Any],
+) -> WhisperTrainingConfig:
     training_cfg = registry["training"]
     model_cfg = registry["models"]["whisper"]
+    transfer_condition = exp["transfer_condition"]
+    transfer_cfg = registry["transfer_setups"][transfer_condition]
+    init_model_name_or_path = _resolve_transfer_checkpoint(
+        project_root,
+        transfer_cfg,
+        transfer_condition,
+        allow_placeholder=smoke_test,
+    )
+    base_model_name_or_path = runtime.get("model_name_or_path", model_cfg["pretrained_model_name_or_path"])
     return WhisperTrainingConfig(
-        model_name_or_path=runtime.get("model_name_or_path", model_cfg["pretrained_model_name_or_path"]),
+        model_name_or_path=base_model_name_or_path,
+        init_model_name_or_path=init_model_name_or_path or base_model_name_or_path,
         language=runtime.get("language", model_cfg.get("language")),
         task=runtime.get("task", model_cfg.get("task", "transcribe")),
+        transfer_condition=transfer_condition,
         learning_rate=float(runtime.get("learning_rate", training_cfg["learning_rate"])),
         weight_decay=float(runtime.get("weight_decay", training_cfg["weight_decay"])),
         warmup_ratio=float(runtime.get("warmup_ratio", training_cfg["warmup_ratio"])),
@@ -109,14 +156,12 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     audio_col = data_cfg["audio_path_column"]
     style_bin_col = data_cfg.get("style_bin_column", "style_bin")
 
-    whisper_cfg = _build_training_config(registry, runtime)
-
     results: List[Dict[str, Any]] = []
     for exp_key in selected:
         exp = experiments_cfg[exp_key]
 
-        if exp_key not in {"E1", "E2", "E3", "E4", "E5"}:
-            raise ValueError(f"Only E1/E2/E3/E4/E5 are permitted for this pipeline, got: {exp_key}")
+        if exp_key not in {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"}:
+            raise ValueError(f"Only E1/E2/E3/E4/E5/E6/E7/E8 are permitted for this pipeline, got: {exp_key}")
         if exp["model_family"] != "whisper":
             raise ValueError(f"Only whisper model_family is supported, got: {exp['model_family']}")
         expected_regime = expected_split_regime_by_experiment.get(exp_key, expected_split_regime)
@@ -124,6 +169,8 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
             raise ValueError(
                 f"Unexpected split regime for {exp_key}: {exp['split_regime']} (expected {expected_regime})"
             )
+        if exp["transfer_condition"] not in registry["transfer_setups"]:
+            raise ValueError(f"Unknown transfer_condition for {exp_key}: {exp['transfer_condition']}")
 
         train_manifest = _resolve_repo_path(project_root, exp["train_manifest"])
         dev_manifest = _resolve_repo_path(project_root, exp["dev_manifest"])
@@ -154,6 +201,13 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
         dev_audio_paths = [str(resolve_audio_path(r[audio_col], project_root=project_root)) for r in dev_rows]
         test_audio_paths = [str(resolve_audio_path(r[audio_col], project_root=project_root)) for r in test_rows]
 
+        whisper_cfg = _build_training_config(
+            registry,
+            runtime,
+            smoke_test=smoke_test,
+            project_root=project_root,
+            exp=exp,
+        )
         output_dir = _resolve_repo_path(project_root, exp["output_dir"])
         logs_dir = _resolve_repo_path(project_root, runtime["logs_root"]) / exp["experiment_id"]
         logs_dir.mkdir(parents=True, exist_ok=True)
@@ -196,6 +250,8 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
         metrics = {
             "experiment_id": exp["experiment_id"],
             "split_regime": exp["split_regime"],
+            "transfer_condition": exp["transfer_condition"],
+            "model_initialization": whisper_cfg.init_model_name_or_path,
             "text_column_used": text_col,
             "n_test": len(test_rows),
             "wer": float(test_metrics["wer"]),
@@ -210,7 +266,8 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
         (logs_dir / "run.log").write_text(
             (
                 f"Completed {exp['experiment_id']} with n_test={len(test_rows)} smoke={smoke_test} "
-                f"text_column={text_col} model={whisper_cfg.model_name_or_path}\n"
+                f"text_column={text_col} model={whisper_cfg.model_name_or_path} "
+                f"transfer={whisper_cfg.transfer_condition} init={whisper_cfg.init_model_name_or_path}\n"
             ),
             encoding="utf-8",
         )

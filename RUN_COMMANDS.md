@@ -76,6 +76,12 @@ $env:PYTHONPATH = "src"
 python scripts/run_whisper_pipeline.py --experiments E5 --smoke-test --skip-audio-check --smoke-max-rows 8
 ```
 
+### Yoruba adaptation smoke
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_yoruba_adaptation.py --config configs/yoruba_adaptation.yaml --smoke-test --smoke-max-rows 8
+```
+
 ## 4) Real training commands
 
 These commands assume your machine has audio files at paths referenced by `audio_path` in metadata.
@@ -150,6 +156,12 @@ python scripts/run_whisper_pipeline.py `
   --learning-rate 1e-4
 ```
 
+### Yoruba adaptation full training
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_yoruba_adaptation.py --config configs/yoruba_adaptation.yaml
+```
+
 For single-line use in PowerShell, this also works:
 
 ```powershell
@@ -177,12 +189,23 @@ For each experiment, outputs are written to the experiment `output_dir` from the
 - `E3`: `results/E3_mix2nat_main_noXfer/`
 - `E4`: `results/E4_nat2cons_rev_noXfer/`
 - `E5`: `results/E5_mix2cons_aux_noXfer/`
+- `Yoruba adaptation`: `results/yoruba_pretrain/`
 
 Inside each experiment directory:
 
 - `metrics.json`
 - `predictions.csv`
 - `predictions.jsonl`
+
+Inside `results/yoruba_pretrain/`:
+
+- `metrics.json`
+- `best_checkpoint.json`
+- `predictions_dev.csv`
+- `predictions_dev.jsonl`
+- `predictions_test.csv`
+- `predictions_test.jsonl`
+- `assumptions.json`
 
 Logs:
 

@@ -1,0 +1,47 @@
+run:
+  experiment_id: "yoruba_pretrain_whisper_small"
+  description: "Adapt openai/whisper-small on the public Common Voice Yoruba corpus"
+  output_dir: "results/yoruba_pretrain"
+  logs_dir: "results/logs/yoruba_pretrain"
+
+dataset:
+  source_type: "huggingface"
+  dataset_name: "fsicoli/common_voice_22_0"
+  dataset_script_path: null
+  data_dir: null
+  dataset_config_name: "yo"
+  trust_remote_code: true
+  audio_column: "audio"
+  transcript_column: "sentence"
+  utt_id_column: null
+  speaker_id_column: "client_id"
+  train_split: "train"
+  dev_split: "validation"
+  test_split: "test"
+
+model:
+  base_model_name_or_path: "openai/whisper-small"
+  language: "yo"
+  task: "transcribe"
+  use_fp16: true
+
+training:
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 1
+  num_train_epochs: 20
+  evaluation_strategy: "epoch"
+  save_strategy: "epoch"
+  logging_strategy: "steps"
+  logging_steps: 25
+  save_total_limit: 2
+  metric_for_best_model: "wer"
+  greater_is_better: false
+  seed: 42
+
+runtime:
+  smoke_test: false
+  smoke_max_rows: 8
