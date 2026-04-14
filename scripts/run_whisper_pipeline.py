@@ -8,7 +8,14 @@ from pathlib import Path
 from asr_pipeline.runner import run_pipeline
 
 
-ALLOWED_EXPERIMENTS = {"E1", "E2", "E3"}
+ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5"}
+EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
+    "E1": "main",
+    "E2": "main",
+    "E3": "main",
+    "E4": "reverse_aux",
+    "E5": "mixed_to_constrained_aux",
+}
 
 
 def _parse_experiments(raw: str) -> list[str]:
@@ -17,16 +24,20 @@ def _parse_experiments(raw: str) -> list[str]:
         raise ValueError("At least one experiment must be provided.")
     invalid = [e for e in exps if e not in ALLOWED_EXPERIMENTS]
     if invalid:
-        raise ValueError(f"Only E1,E2,E3 are supported. Invalid: {invalid}")
+        raise ValueError(f"Only E1,E2,E3,E4,E5 are supported. Invalid: {invalid}")
     return exps
 
 
 def build_runtime_config(args: argparse.Namespace) -> dict:
+    experiments = _parse_experiments(args.experiments)
     return {
         "project_root": str(args.project_root),
         "registry_path": args.registry,
-        "experiments": _parse_experiments(args.experiments),
+        "experiments": experiments,
         "expected_split_regime": "main",
+        "expected_split_regime_by_experiment": {
+            exp: EXPECTED_SPLIT_REGIME_BY_EXPERIMENT[exp] for exp in experiments
+        },
         "required_columns": [
             "audio_path",
             "utt_id",
@@ -66,10 +77,10 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
-    parser = argparse.ArgumentParser(description="Run Whisper pipeline for E1/E2/E3")
+    parser = argparse.ArgumentParser(description="Run Whisper pipeline for E1/E2/E3/E4/E5")
     parser.add_argument("--project-root", type=Path, default=repo_root)
     parser.add_argument("--registry", default="configs/experiment_registry.yaml")
-    parser.add_argument("--experiments", default="E1,E2,E3")
+    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5")
     parser.add_argument("--text-column", default="transcription")
     parser.add_argument("--logs-root", default="results/logs")
     parser.add_argument("--aggregate-metrics", default="results/aggregate_metrics_e1_e3.json")

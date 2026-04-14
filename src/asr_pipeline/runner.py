@@ -103,6 +103,7 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     smoke_max_rows = int(runtime.get("smoke_max_rows", 8))
     validate_audio = bool(runtime.get("validate_audio_paths", True))
     expected_split_regime = runtime.get("expected_split_regime", "main")
+    expected_split_regime_by_experiment = runtime.get("expected_split_regime_by_experiment", {})
 
     base_required_columns = runtime["required_columns"]
     audio_col = data_cfg["audio_path_column"]
@@ -114,12 +115,15 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     for exp_key in selected:
         exp = experiments_cfg[exp_key]
 
-        if exp_key not in {"E1", "E2", "E3"}:
-            raise ValueError(f"Only E1/E2/E3 are permitted for this pipeline, got: {exp_key}")
+        if exp_key not in {"E1", "E2", "E3", "E4", "E5"}:
+            raise ValueError(f"Only E1/E2/E3/E4/E5 are permitted for this pipeline, got: {exp_key}")
         if exp["model_family"] != "whisper":
             raise ValueError(f"Only whisper model_family is supported, got: {exp['model_family']}")
-        if exp["split_regime"] != expected_split_regime:
-            raise ValueError(f"Unexpected split regime for {exp_key}: {exp['split_regime']}")
+        expected_regime = expected_split_regime_by_experiment.get(exp_key, expected_split_regime)
+        if exp["split_regime"] != expected_regime:
+            raise ValueError(
+                f"Unexpected split regime for {exp_key}: {exp['split_regime']} (expected {expected_regime})"
+            )
 
         train_manifest = _resolve_repo_path(project_root, exp["train_manifest"])
         dev_manifest = _resolve_repo_path(project_root, exp["dev_manifest"])
