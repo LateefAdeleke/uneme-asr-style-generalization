@@ -112,6 +112,7 @@ def _build_training_config(
     return WhisperTrainingConfig(
         model_name_or_path=base_model_name_or_path,
         init_model_name_or_path=init_model_name_or_path or base_model_name_or_path,
+        freeze_encoder=bool(model_cfg.get("freeze_encoder", False)),
         language=runtime.get("language", model_cfg.get("language")),
         task=runtime.get("task", model_cfg.get("task", "transcribe")),
         transfer_condition=transfer_condition,

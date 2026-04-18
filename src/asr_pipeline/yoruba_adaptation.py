@@ -296,6 +296,7 @@ def _build_training_config(config: Dict[str, Any]) -> WhisperTrainingConfig:
     return WhisperTrainingConfig(
         model_name_or_path=model_cfg["base_model_name_or_path"],
         init_model_name_or_path=model_cfg["base_model_name_or_path"],
+        freeze_encoder=bool(model_cfg.get("freeze_encoder", False)),
         language=model_cfg.get("language"),
         task=model_cfg.get("task", "transcribe"),
         transfer_condition="yoruba_adaptation",

@@ -23,6 +23,7 @@ class MinimalWhisperBackend:
 class WhisperTrainingConfig:
     model_name_or_path: str
     init_model_name_or_path: str
+    freeze_encoder: bool
     language: str | None
     task: str
     transfer_condition: str
@@ -62,6 +63,17 @@ class RealWhisperBackend:
 
         self.processor = WhisperProcessor.from_pretrained(cfg.model_name_or_path)
         self.model = WhisperForConditionalGeneration.from_pretrained(cfg.init_model_name_or_path)
+
+        if cfg.freeze_encoder:
+            for param in self.model.model.encoder.parameters():
+                param.requires_grad = False
+
+            n_trainable = sum(p.requires_grad for p in self.model.parameters())
+            n_total = sum(1 for _ in self.model.parameters())
+            print(f"[DEBUG] Trainable params: {n_trainable}/{n_total}")
+
+            encoder_trainable = any(p.requires_grad for p in self.model.model.encoder.parameters())
+            print(f"[DEBUG] Encoder trainable: {encoder_trainable}")
 
         if cfg.language:
             forced_decoder_ids = self.processor.get_decoder_prompt_ids(
