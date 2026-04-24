@@ -14,7 +14,14 @@ from .data import (
     validate_required_columns,
 )
 from .metrics import cer, wer
-from .modeling import MinimalWhisperBackend, RealWhisperBackend, WhisperTrainingConfig
+from .modeling import (
+    CTCTrainingConfig,
+    MinimalCTCBackend,
+    MinimalWhisperBackend,
+    RealCTCBackend,
+    RealWhisperBackend,
+    WhisperTrainingConfig,
+)
 
 
 def _write_json(path: Path, payload: Dict[str, Any]) -> None:
@@ -90,7 +97,7 @@ def _resolve_transfer_checkpoint(
     return str(checkpoint)
 
 
-def _build_training_config(
+def _build_whisper_training_config(
     registry: Dict[str, Any],
     runtime: Dict[str, Any],
     *,
@@ -137,6 +144,48 @@ def _build_training_config(
     )
 
 
+def _build_ctc_training_config(
+    registry: Dict[str, Any],
+    runtime: Dict[str, Any],
+) -> CTCTrainingConfig:
+    training_cfg = registry["training"]
+    model_cfg = registry["models"]["wav2vec2_ctc"]
+    model_name_or_path = runtime.get("model_name_or_path", model_cfg["pretrained_model_name_or_path"])
+    processor_name_or_path = runtime.get("processor_name_or_path", model_cfg["processor_name_or_path"])
+    return CTCTrainingConfig(
+        model_name_or_path=model_name_or_path,
+        processor_name_or_path=processor_name_or_path,
+        init_model_name_or_path=model_name_or_path,
+        learning_rate=float(runtime.get("learning_rate", training_cfg["learning_rate"])),
+        weight_decay=float(runtime.get("weight_decay", training_cfg["weight_decay"])),
+        warmup_ratio=float(runtime.get("warmup_ratio", training_cfg["warmup_ratio"])),
+        per_device_train_batch_size=int(
+            runtime.get("per_device_train_batch_size", training_cfg["per_device_train_batch_size"])
+        ),
+        per_device_eval_batch_size=int(runtime.get("per_device_eval_batch_size", training_cfg["per_device_eval_batch_size"])),
+        gradient_accumulation_steps=int(
+            runtime.get("gradient_accumulation_steps", training_cfg["gradient_accumulation_steps"])
+        ),
+        num_train_epochs=float(runtime.get("num_train_epochs", training_cfg["num_train_epochs"])),
+        eval_strategy=str(runtime.get("evaluation_strategy", training_cfg["evaluation_strategy"])),
+        save_strategy=str(runtime.get("save_strategy", training_cfg["save_strategy"])),
+        logging_strategy=str(runtime.get("logging_strategy", training_cfg["logging_strategy"])),
+        logging_steps=int(runtime.get("logging_steps", training_cfg["logging_steps"])),
+        save_total_limit=int(runtime.get("save_total_limit", training_cfg["save_total_limit"])),
+        fp16=bool(runtime.get("use_fp16", model_cfg.get("use_fp16", True))),
+        seed=int(runtime.get("seed", registry["defaults"]["random_seed"])),
+    )
+
+
+def _apply_suffix(value: str, suffix: str | None) -> str:
+    if not suffix:
+        return value
+    path = Path(value)
+    if path.parent == Path("."):
+        return f"{path.name}{suffix}"
+    return str(path.parent / f"{path.name}{suffix}")
+
+
 def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     runtime = load_runtime_config(runtime_config_path)
     project_root = Path(runtime.get("project_root", Path.cwd())).resolve()
@@ -156,15 +205,21 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     base_required_columns = runtime["required_columns"]
     audio_col = data_cfg["audio_path_column"]
     style_bin_col = data_cfg.get("style_bin_column", "style_bin")
+    model_family_override = runtime.get("model_family_override")
+    experiment_id_suffix = runtime.get("experiment_id_suffix")
+    output_dir_suffix = runtime.get("output_dir_suffix")
 
     results: List[Dict[str, Any]] = []
     for exp_key in selected:
         exp = experiments_cfg[exp_key]
 
-        if exp_key not in {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"}:
-            raise ValueError(f"Only E1/E2/E3/E4/E5/E6/E7/E8 are permitted for this pipeline, got: {exp_key}")
-        if exp["model_family"] != "whisper":
-            raise ValueError(f"Only whisper model_family is supported, got: {exp['model_family']}")
+        if exp_key not in {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E1f", "E2f", "E3f"}:
+            raise ValueError(f"Unsupported experiment for this pipeline: {exp_key}")
+
+        model_family = str(model_family_override or exp["model_family"])
+        if model_family not in {"whisper", "wav2vec2_ctc"}:
+            raise ValueError(f"Unsupported model_family for this pipeline: {model_family}")
+
         expected_regime = expected_split_regime_by_experiment.get(exp_key, expected_split_regime)
         if exp["split_regime"] != expected_regime:
             raise ValueError(
@@ -202,43 +257,64 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
         dev_audio_paths = [str(resolve_audio_path(r[audio_col], project_root=project_root)) for r in dev_rows]
         test_audio_paths = [str(resolve_audio_path(r[audio_col], project_root=project_root)) for r in test_rows]
 
-        whisper_cfg = _build_training_config(
-            registry,
-            runtime,
-            smoke_test=smoke_test,
-            project_root=project_root,
-            exp=exp,
-        )
-        output_dir = _resolve_repo_path(project_root, exp["output_dir"])
-        logs_dir = _resolve_repo_path(project_root, runtime["logs_root"]) / exp["experiment_id"]
+        experiment_id = _apply_suffix(exp["experiment_id"], experiment_id_suffix)
+        output_dir = _resolve_repo_path(project_root, _apply_suffix(exp["output_dir"], output_dir_suffix))
+        logs_dir = _resolve_repo_path(project_root, runtime["logs_root"]) / experiment_id
         logs_dir.mkdir(parents=True, exist_ok=True)
 
         if smoke_test:
-            backend = MinimalWhisperBackend()
+            backend = MinimalWhisperBackend() if model_family == "whisper" else MinimalCTCBackend()
             backend.train(train_rows, dev_rows)
             predictions = backend.predict(test_rows)
             test_metrics = {
                 "wer": wer([r[text_col] for r in test_rows], predictions),
                 "cer": cer([r[text_col] for r in test_rows], predictions),
             }
+            model_name_or_path = runtime.get("model_name_or_path", registry["models"][model_family]["pretrained_model_name_or_path"])
+            model_initialization = model_name_or_path
         else:
-            backend = RealWhisperBackend(whisper_cfg)
-            predictions, test_metrics = backend.train_and_predict(
-                train_rows=train_rows,
-                dev_rows=dev_rows,
-                test_rows=test_rows,
-                train_audio_paths=train_audio_paths,
-                dev_audio_paths=dev_audio_paths,
-                test_audio_paths=test_audio_paths,
-                text_column=text_col,
-                output_dir=output_dir,
-            )
+            if model_family == "whisper":
+                whisper_cfg = _build_whisper_training_config(
+                    registry,
+                    runtime,
+                    smoke_test=smoke_test,
+                    project_root=project_root,
+                    exp=exp,
+                )
+                backend = RealWhisperBackend(whisper_cfg)
+                predictions, test_metrics = backend.train_and_predict(
+                    train_rows=train_rows,
+                    dev_rows=dev_rows,
+                    test_rows=test_rows,
+                    train_audio_paths=train_audio_paths,
+                    dev_audio_paths=dev_audio_paths,
+                    test_audio_paths=test_audio_paths,
+                    text_column=text_col,
+                    output_dir=output_dir,
+                )
+                model_name_or_path = whisper_cfg.model_name_or_path
+                model_initialization = whisper_cfg.init_model_name_or_path
+            else:
+                ctc_cfg = _build_ctc_training_config(registry, runtime)
+                backend = RealCTCBackend(ctc_cfg)
+                predictions, test_metrics = backend.train_and_predict(
+                    train_rows=train_rows,
+                    dev_rows=dev_rows,
+                    test_rows=test_rows,
+                    train_audio_paths=train_audio_paths,
+                    dev_audio_paths=dev_audio_paths,
+                    test_audio_paths=test_audio_paths,
+                    text_column=text_col,
+                    output_dir=output_dir,
+                )
+                model_name_or_path = ctc_cfg.model_name_or_path
+                model_initialization = ctc_cfg.init_model_name_or_path
 
         pred_rows = []
         for row, pred in zip(test_rows, predictions):
             pred_rows.append(
                 {
-                    "experiment_id": exp["experiment_id"],
+                    "experiment_id": experiment_id,
                     "utt_id": row.get(runtime["utt_id_column"], ""),
                     "speaker_id": row.get(runtime["speaker_id_column"], ""),
                     "session_id": row.get(runtime["session_id_column"], ""),
@@ -249,10 +325,11 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
             )
 
         metrics = {
-            "experiment_id": exp["experiment_id"],
+            "experiment_id": experiment_id,
+            "model_family": model_family,
             "split_regime": exp["split_regime"],
             "transfer_condition": exp["transfer_condition"],
-            "model_initialization": whisper_cfg.init_model_name_or_path,
+            "model_initialization": model_initialization,
             "text_column_used": text_col,
             "n_test": len(test_rows),
             "wer": float(test_metrics["wer"]),
@@ -266,9 +343,9 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
         _write_predictions_jsonl(output_dir / "predictions.jsonl", pred_rows)
         (logs_dir / "run.log").write_text(
             (
-                f"Completed {exp['experiment_id']} with n_test={len(test_rows)} smoke={smoke_test} "
-                f"text_column={text_col} model={whisper_cfg.model_name_or_path} "
-                f"transfer={whisper_cfg.transfer_condition} init={whisper_cfg.init_model_name_or_path}\n"
+                f"Completed {experiment_id} with n_test={len(test_rows)} smoke={smoke_test} "
+                f"text_column={text_col} model_family={model_family} model={model_name_or_path} "
+                f"transfer={exp['transfer_condition']} init={model_initialization}\n"
             ),
             encoding="utf-8",
         )
