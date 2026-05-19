@@ -267,9 +267,9 @@ M_E1_...
 
 ---
 
-## Output Requirements
+## Outputs:
 
-Each experiment must save:
+Each experiment save:
 
 * model checkpoints
 * WER/CER results
@@ -290,4 +290,3 @@ The **main split (E1–E3, E6–E8)** drives the paper’s contribution.
 
 Experiments targeting constrained speech (E4, E5, E9, E10) are included as **diagnostic and supplementary analyses** to contextualize performance differences across evaluation conditions.
 
-Focus on clarity, reproducibility, and clean comparisons.
