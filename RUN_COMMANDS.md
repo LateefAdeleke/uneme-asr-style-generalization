@@ -92,15 +92,15 @@ $env:PYTHONPATH = "src"
 python scripts/run_mms_pipeline.py `
   --experiments E1,E2,E3 `
   --project-root . `
-  --registry configs/experiment_registry.yaml `
-  --target-lang <iso639-3-code>
+  --registry configs/experiment_registry.yaml
 ```
 
 Notes:
 
-- `run_mms_pipeline.py` uses the MMS adapter-based ASR checkpoints and keeps Whisper untouched.
+- `run_mms_pipeline.py` keeps Whisper untouched and is intended for **diagnostic CTC baselines only** in the current project direction.
 - MMS is currently wired for the direct fine-tuning split conditions `E1-E5`.
 - `E6-E10` remain reserved for the Yoruba-initialized transfer condition used by Whisper.
+- Under the current low-resource setup, the CTC-based systems did not reach a strong enough performance regime for the main paper comparisons, so prioritize Whisper for reported experiments.
 
 ### E1 real training
 ```powershell

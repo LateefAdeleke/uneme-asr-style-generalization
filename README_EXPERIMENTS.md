@@ -173,6 +173,11 @@ Two model families:
 1. **Whisper-style (Seq2Seq)**
 2. **Wav2Vec2 / MMS-style (CTC)**
 
+Current reporting direction:
+
+- **Whisper is the primary model family for the paper's main claims.**
+- **CTC-based wav2vec2/MMS runs are retained as diagnostic baselines and appendix material only**, since under the current low-resource setup they did not reach a performance regime where style-conditioned comparisons were reliably interpretable.
+
 ---
 
 ## Evaluation Metrics
@@ -289,4 +294,6 @@ results/<experiment_id>/
 The **main split (E1–E3, E6–E8)** drives the paper’s contribution.
 
 Experiments targeting constrained speech (E4, E5, E9, E10) are included as **diagnostic and supplementary analyses** to contextualize performance differences across evaluation conditions.
+
+In the current writeup direction, the primary reported results are the **Whisper-based experiments**, while the CTC-based wav2vec2/MMS results are treated as **diagnostic baselines** rather than as the basis for the paper's central comparative claims.
 
