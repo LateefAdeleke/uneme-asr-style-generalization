@@ -552,10 +552,8 @@ class RealCTCBackend:
             ).input_values[0]
 
             if self.cfg.ctc_label_mode == "grapheme":
-                labels = processor.tokenizer(
-                    self._encode_uneme_graphemes(example[text_column]),
-                    is_split_into_words=True,
-                ).input_ids
+                grapheme_tokens = self._encode_uneme_graphemes(example[text_column])
+                labels = processor.tokenizer.convert_tokens_to_ids(grapheme_tokens)
             else:
                 normalized_text = self._normalize_transcript(example[text_column])
                 if not self.cfg.use_pretrained_tokenizer:
