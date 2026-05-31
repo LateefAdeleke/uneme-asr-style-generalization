@@ -253,7 +253,7 @@ M_E1_...
 
 ---
 
-## Expected Findings
+## Hypothesis
 
 * Constrained-trained models degrade on naturalistic speech
 * Mixed training improves robustness
@@ -261,14 +261,6 @@ M_E1_...
 * Transfer gains weaken or become unstable under naturalistic evaluation
 * Evaluation on constrained speech overestimates real-world performance
 
----
-
-## Important Constraints
-
-* Do NOT modify dataset structure
-* Do NOT regenerate splits
-* Always use `audio_path` from metadata
-* Always validate audio file existence before training
 
 ---
 
