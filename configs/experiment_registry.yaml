@@ -163,6 +163,18 @@ models:
     model_type: "ctc"
     pretrained_model_name_or_path: "facebook/wav2vec2-xls-r-300m"
     processor_name_or_path: "facebook/wav2vec2-xls-r-300m"
+    use_pretrained_tokenizer: false
+    ctc_label_mode: "character"
+    target_lang: null
+    use_fp16: true
+
+  mms_ctc:
+    model_type: "ctc"
+    pretrained_model_name_or_path: "facebook/mms-1b-all"
+    processor_name_or_path: "facebook/mms-1b-all"
+    use_pretrained_tokenizer: false
+    ctc_label_mode: "grapheme"
+    target_lang: null
     use_fp16: true
 
 transfer_setups:

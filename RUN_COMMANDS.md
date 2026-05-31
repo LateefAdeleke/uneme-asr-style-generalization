@@ -86,6 +86,22 @@ python scripts/run_yoruba_adaptation.py --config configs/yoruba_adaptation.yaml 
 
 These commands assume your machine has audio files at paths referenced by `audio_path` in metadata.
 
+### MMS CTC pilot (E1-E5 only)
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_mms_pipeline.py `
+  --experiments E1,E2,E3 `
+  --project-root . `
+  --registry configs/experiment_registry.yaml `
+  --target-lang <iso639-3-code>
+```
+
+Notes:
+
+- `run_mms_pipeline.py` uses the MMS adapter-based ASR checkpoints and keeps Whisper untouched.
+- MMS is currently wired for the direct fine-tuning split conditions `E1-E5`.
+- `E6-E10` remain reserved for the Yoruba-initialized transfer condition used by Whisper.
+
 ### E1 real training
 ```powershell
 $env:PYTHONPATH = "src"
@@ -162,6 +178,16 @@ $env:PYTHONPATH = "src"
 python scripts/run_yoruba_adaptation.py --config configs/yoruba_adaptation.yaml
 ```
 
+### Tone and vowel confusion analysis
+```powershell
+python scripts/analyze_tone_vowel_confusions.py results/E5_mix2cons_aux_noXfer/predictions.csv
+```
+
+### Tone and vowel confusion analysis for all experiments
+```powershell
+python scripts/analyze_tone_vowel_confusions.py --all-experiments --results-root results
+```
+
 For single-line use in PowerShell, this also works:
 
 ```powershell
@@ -206,6 +232,14 @@ Inside `results/yoruba_pretrain/`:
 - `predictions_test.csv`
 - `predictions_test.jsonl`
 - `assumptions.json`
+
+Inside `results/<experiment_id>/phonology_analysis/` after running the confusion script:
+
+- `vowel_confusion_matrix.csv`
+- `tone_confusion_matrix.csv`
+- `vowel_confusion_heatmap.png`
+- `tone_confusion_heatmap.png`
+- `summary.json`
 
 Logs:
 

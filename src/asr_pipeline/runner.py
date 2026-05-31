@@ -147,15 +147,20 @@ def _build_whisper_training_config(
 def _build_ctc_training_config(
     registry: Dict[str, Any],
     runtime: Dict[str, Any],
+    *,
+    model_family: str,
 ) -> CTCTrainingConfig:
     training_cfg = registry["training"]
-    model_cfg = registry["models"]["wav2vec2_ctc"]
+    model_cfg = registry["models"][model_family]
     model_name_or_path = runtime.get("model_name_or_path", model_cfg["pretrained_model_name_or_path"])
     processor_name_or_path = runtime.get("processor_name_or_path", model_cfg["processor_name_or_path"])
     return CTCTrainingConfig(
         model_name_or_path=model_name_or_path,
         processor_name_or_path=processor_name_or_path,
         init_model_name_or_path=model_name_or_path,
+        use_pretrained_tokenizer=bool(model_cfg.get("use_pretrained_tokenizer", False)),
+        ctc_label_mode=str(runtime.get("ctc_label_mode", model_cfg.get("ctc_label_mode", "character"))),
+        target_lang=runtime.get("target_lang", model_cfg.get("target_lang")),
         learning_rate=float(runtime.get("learning_rate", training_cfg["learning_rate"])),
         weight_decay=float(runtime.get("weight_decay", training_cfg["weight_decay"])),
         warmup_ratio=float(runtime.get("warmup_ratio", training_cfg["warmup_ratio"])),
@@ -217,7 +222,7 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
             raise ValueError(f"Unsupported experiment for this pipeline: {exp_key}")
 
         model_family = str(model_family_override or exp["model_family"])
-        if model_family not in {"whisper", "wav2vec2_ctc"}:
+        if model_family not in {"whisper", "wav2vec2_ctc", "mms_ctc"}:
             raise ValueError(f"Unsupported model_family for this pipeline: {model_family}")
 
         expected_regime = expected_split_regime_by_experiment.get(exp_key, expected_split_regime)
@@ -295,7 +300,7 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
                 model_name_or_path = whisper_cfg.model_name_or_path
                 model_initialization = whisper_cfg.init_model_name_or_path
             else:
-                ctc_cfg = _build_ctc_training_config(registry, runtime)
+                ctc_cfg = _build_ctc_training_config(registry, runtime, model_family=model_family)
                 backend = RealCTCBackend(ctc_cfg)
                 predictions, test_metrics = backend.train_and_predict(
                     train_rows=train_rows,

@@ -8,11 +8,13 @@ from pathlib import Path
 from asr_pipeline.runner import run_pipeline
 
 
-ALLOWED_EXPERIMENTS = {"E1", "E2", "E3"}
+ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5"}
 EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
     "E1": "main",
     "E2": "main",
     "E3": "main",
+    "E4": "reverse_aux",
+    "E5": "mixed_to_constrained_aux",
 }
 
 
@@ -22,7 +24,7 @@ def _parse_experiments(raw: str) -> list[str]:
         raise ValueError("At least one experiment must be provided.")
     invalid = [exp for exp in exps if exp not in ALLOWED_EXPERIMENTS]
     if invalid:
-        raise ValueError(f"Only E1,E2,E3 are supported for wav2vec2_ctc validation. Invalid: {invalid}")
+        raise ValueError(f"Only E1,E2,E3,E4,E5 are supported for MMS validation. Invalid: {invalid}")
     return exps
 
 
@@ -45,7 +47,7 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
             "style_bin",
         ],
         "text_column_override": args.text_column,
-        "fallback_text_columns": ["transcription", "transcription_norm"],
+        "fallback_text_columns": ["transcription_norm", "transcription"],
         "utt_id_column": "utt_id",
         "speaker_id_column": "speaker_id",
         "session_id_column": "session_id",
@@ -55,11 +57,12 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
         "smoke_max_rows": args.smoke_max_rows,
         "logs_root": args.logs_root,
         "aggregate_metrics_path": args.aggregate_metrics,
-        "model_family_override": "wav2vec2_ctc",
-        "experiment_id_suffix": "_wav2vec2_ctc",
-        "output_dir_suffix": "_wav2vec2_ctc",
+        "model_family_override": "mms_ctc",
+        "experiment_id_suffix": "_mms_ctc",
+        "output_dir_suffix": "_mms_ctc",
         "model_name_or_path": args.model_name_or_path,
         "processor_name_or_path": args.processor_name_or_path,
+        "target_lang": args.target_lang,
         "learning_rate": args.learning_rate,
         "num_train_epochs": args.num_train_epochs,
         "per_device_train_batch_size": args.per_device_train_batch_size,
@@ -79,20 +82,21 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
-    parser = argparse.ArgumentParser(description="Run wav2vec2/XLS-R pipeline for E1/E2/E3")
+    parser = argparse.ArgumentParser(description="Run MMS CTC pipeline for E1/E2/E3/E4/E5")
     parser.add_argument("--project-root", type=Path, default=repo_root)
     parser.add_argument("--registry", default="configs/experiment_registry.yaml")
-    parser.add_argument("--experiments", default="E1,E2,E3")
-    parser.add_argument("--text-column", default="transcription")
+    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5")
+    parser.add_argument("--text-column", default=None)
     parser.add_argument("--logs-root", default="results/logs")
-    parser.add_argument("--aggregate-metrics", default="results/aggregate_metrics_wav2vec_e1_e3.json")
+    parser.add_argument("--aggregate-metrics", default="results/aggregate_metrics_mms_e1_e5.json")
 
-    parser.add_argument("--model-name-or-path", default="facebook/wav2vec2-xls-r-300m")
-    parser.add_argument("--processor-name-or-path", default="facebook/wav2vec2-xls-r-300m")
+    parser.add_argument("--model-name-or-path", default="facebook/mms-1b-all")
+    parser.add_argument("--processor-name-or-path", default="facebook/mms-1b-all")
+    parser.add_argument("--target-lang", default=None, help="Optional MMS adapter language code for supported languages")
     parser.add_argument("--learning-rate", type=float, default=1e-4)
     parser.add_argument("--num-train-epochs", type=float, default=3.0)
-    parser.add_argument("--per-device-train-batch-size", type=int, default=8)
-    parser.add_argument("--per-device-eval-batch-size", type=int, default=8)
+    parser.add_argument("--per-device-train-batch-size", type=int, default=4)
+    parser.add_argument("--per-device-eval-batch-size", type=int, default=4)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--evaluation-strategy", default="epoch")
     parser.add_argument("--save-strategy", default="epoch")
@@ -110,7 +114,7 @@ def main() -> None:
     args = parser.parse_args()
 
     runtime = build_runtime_config(args)
-    tmp_runtime = Path(args.project_root) / "results" / "runtime_config_wav2vec_e1_e3.json"
+    tmp_runtime = Path(args.project_root) / "results" / "runtime_config_mms_e1_e5.json"
     tmp_runtime.parent.mkdir(parents=True, exist_ok=True)
     tmp_runtime.write_text(json.dumps(runtime, indent=2), encoding="utf-8")
 

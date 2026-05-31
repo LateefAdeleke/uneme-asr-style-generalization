@@ -8,7 +8,7 @@ from pathlib import Path
 from asr_pipeline.runner import run_pipeline
 
 
-ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"}
+ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E1f", "E2f", "E3f"}
 EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
     "E1": "main",
     "E2": "main",
@@ -18,6 +18,11 @@ EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
     "E6": "main",
     "E7": "main",
     "E8": "main",
+    "E9": "reverse_aux",
+    "E10": "mixed_to_constrained_aux",
+    "E1f": "main",
+    "E2f": "main",
+    "E3f": "main"
 }
 
 
@@ -27,13 +32,13 @@ def _parse_experiments(raw: str) -> list[str]:
         raise ValueError("At least one experiment must be provided.")
     invalid = [e for e in exps if e not in ALLOWED_EXPERIMENTS]
     if invalid:
-        raise ValueError(f"Only E1,E2,E3,E4,E5,E6,E7,E8 are supported. Invalid: {invalid}")
+        raise ValueError(f"Only E1,E2,E3,E4,E5,E6,E7,E8, E9, E10 are supported. Invalid: {invalid}")
     return exps
 
 
 def build_runtime_config(args: argparse.Namespace) -> dict:
     experiments = _parse_experiments(args.experiments)
-    return {
+    runtime = {
         "project_root": str(args.project_root),
         "registry_path": args.registry,
         "experiments": experiments,
@@ -72,18 +77,20 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
         "save_strategy": args.save_strategy,
         "logging_steps": args.logging_steps,
         "save_total_limit": args.save_total_limit,
-        "use_fp16": args.use_fp16,
         "seed": args.seed,
     }
+    if args.use_fp16 is not None:
+        runtime["use_fp16"] = args.use_fp16
+    return runtime
 
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
-    parser = argparse.ArgumentParser(description="Run Whisper pipeline for E1/E2/E3/E4/E5/E6/E7/E8")
+    parser = argparse.ArgumentParser(description="Run Whisper pipeline for E1/E2/E3/E4/E5/E6/E7/E8/E9/E10")
     parser.add_argument("--project-root", type=Path, default=repo_root)
     parser.add_argument("--registry", default="configs/experiment_registry.yaml")
-    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5,E6,E7,E8")
+    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5,E6,E7,E8, E9, E10, E1f, E2f, E3f")
     parser.add_argument("--text-column", default="transcription")
     parser.add_argument("--logs-root", default="results/logs")
     parser.add_argument("--aggregate-metrics", default="results/aggregate_metrics_e1_e3.json")
@@ -100,7 +107,10 @@ def main() -> None:
     parser.add_argument("--save-strategy", default="epoch")
     parser.add_argument("--logging-steps", type=int, default=25)
     parser.add_argument("--save-total-limit", type=int, default=2)
-    parser.add_argument("--use-fp16", action="store_true")
+    fp16_group = parser.add_mutually_exclusive_group()
+    fp16_group.add_argument("--use-fp16", dest="use_fp16", action="store_true")
+    fp16_group.add_argument("--no-fp16", dest="use_fp16", action="store_false")
+    parser.set_defaults(use_fp16=None)
     parser.add_argument("--seed", type=int, default=42)
 
     parser.add_argument("--smoke-test", action="store_true")

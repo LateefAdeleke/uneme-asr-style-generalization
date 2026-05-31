@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Sequence
@@ -51,6 +52,9 @@ class CTCTrainingConfig:
     model_name_or_path: str
     processor_name_or_path: str
     init_model_name_or_path: str
+    use_pretrained_tokenizer: bool
+    ctc_label_mode: str
+    target_lang: str | None
     learning_rate: float
     weight_decay: float
     warmup_ratio: float
@@ -274,12 +278,45 @@ class RealWhisperBackend:
 class RealCTCBackend:
     """Wav2Vec2/XLS-R CTC fine-tuning backend using Hugging Face Trainer."""
 
+    UNEME_ORAL_VOWELS = ("a", "e", "ẹ", "i", "o", "ọ", "u")
+    UNEME_NASAL_VOWELS = ("an", "ẹn", "ọn", "un", "in")
+    UNEME_CONSONANT_GRAPHEMES = (
+        "ch",
+        "vb",
+        "gh",
+        "gb",
+        "kp",
+        "kh",
+        "rh",
+        "sh",
+        "ṣ",
+        "b",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "r",
+        "s",
+        "t",
+        "v",
+        "w",
+        "y",
+        "z",
+    )
+    TONE_MARKS = {"\u0300", "\u0301"}
+
     def __init__(self, cfg: CTCTrainingConfig):
         self.cfg = cfg
 
         try:
             import torch
             from transformers import (
+                AutoProcessor,
                 Trainer,
                 TrainingArguments,
                 Wav2Vec2CTCTokenizer,
@@ -293,6 +330,7 @@ class RealCTCBackend:
             ) from exc
 
         self.torch = torch
+        self.AutoProcessor = AutoProcessor
         self.Trainer = Trainer
         self.TrainingArguments = TrainingArguments
         self.Wav2Vec2CTCTokenizer = Wav2Vec2CTCTokenizer
@@ -300,14 +338,104 @@ class RealCTCBackend:
         self.Wav2Vec2ForCTC = Wav2Vec2ForCTC
         self.Wav2Vec2Processor = Wav2Vec2Processor
 
-        self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(cfg.processor_name_or_path)
+        self.feature_extractor = None
         self.processor = None
         self.model = None
 
     def _normalize_transcript(self, text: str) -> str:
         return " ".join(text.strip().split())
 
+    def _normalize_grapheme_text(self, text: str) -> str:
+        text = unicodedata.normalize("NFC", self._normalize_transcript(text).lower())
+        text = text.replace("\u2018", "'").replace("\u2019", "'")
+        return text
+
+    def _split_graphemes(self, text: str) -> list[str]:
+        normalized = unicodedata.normalize("NFD", text)
+        graphemes: list[str] = []
+        current = ""
+        for char in normalized:
+            if unicodedata.combining(char):
+                if current:
+                    current += char
+                continue
+            if current:
+                graphemes.append(unicodedata.normalize("NFC", current))
+            current = char
+        if current:
+            graphemes.append(unicodedata.normalize("NFC", current))
+        return graphemes
+
+    def _strip_tone_marks(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFD", text)
+        chars = [char for char in normalized if char not in self.TONE_MARKS]
+        return unicodedata.normalize("NFC", "".join(chars)).lower()
+
+    def _match_uneme_consonant(self, graphemes: Sequence[str], idx: int) -> tuple[str | None, int]:
+        if idx + 1 < len(graphemes):
+            candidate = f"{self._strip_tone_marks(graphemes[idx])}{self._strip_tone_marks(graphemes[idx + 1])}"
+            if candidate in self.UNEME_CONSONANT_GRAPHEMES:
+                return candidate, 2
+
+        candidate = self._strip_tone_marks(graphemes[idx])
+        if candidate in self.UNEME_CONSONANT_GRAPHEMES:
+            return candidate, 1
+        return None, 1
+
+    def _encode_uneme_graphemes(self, text: str) -> list[str]:
+        normalized = self._normalize_grapheme_text(text)
+        graphemes = self._split_graphemes(normalized)
+        tokens: list[str] = []
+        idx = 0
+        while idx < len(graphemes):
+            grapheme = graphemes[idx]
+            if grapheme.isspace():
+                tokens.append("|")
+                idx += 1
+                continue
+            if grapheme == "'":
+                tokens.append("'")
+                idx += 1
+                continue
+
+            vowel_identity = self._strip_tone_marks(grapheme)
+            if vowel_identity in self.UNEME_ORAL_VOWELS:
+                token = grapheme
+                if idx + 1 < len(graphemes):
+                    next_identity = self._strip_tone_marks(graphemes[idx + 1])
+                    nasal_candidate = f"{vowel_identity}{next_identity}"
+                    if next_identity == "n" and nasal_candidate in self.UNEME_NASAL_VOWELS:
+                        token = f"{grapheme}{graphemes[idx + 1]}"
+                        idx += 1
+                tokens.append(unicodedata.normalize("NFC", token))
+                idx += 1
+                continue
+
+            token, step = self._match_uneme_consonant(graphemes, idx)
+            if token is not None:
+                tokens.append(token)
+            else:
+                stripped = self._strip_tone_marks(grapheme)
+                if stripped.isascii() and stripped.isalnum():
+                    tokens.append(stripped)
+                elif stripped in {"ẹ", "ọ", "ṣ"}:
+                    tokens.append(stripped)
+            idx += step
+        return tokens
+
+    def _build_vocab_from_tokens(self, token_sequences: Sequence[Sequence[str]]) -> Dict[str, int]:
+        vocab_tokens = sorted({token for seq in token_sequences for token in seq if token != "|"})
+        vocab = {token: idx for idx, token in enumerate(vocab_tokens)}
+        vocab["|"] = len(vocab)
+        vocab["[UNK]"] = len(vocab)
+        vocab["[PAD]"] = len(vocab)
+        return vocab
+
     def _build_vocab(self, rows: Sequence[Dict[str, str]], text_column: str) -> Dict[str, int]:
+        if self.cfg.ctc_label_mode == "grapheme":
+            sequences = [self._encode_uneme_graphemes(row[text_column]) for row in rows]
+            return self._build_vocab_from_tokens(sequences)
+
         charset = set()
         for row in rows:
             normalized = self._normalize_transcript(row[text_column])
@@ -324,6 +452,19 @@ class RealCTCBackend:
         processor_dir = output_dir / "ctc_processor"
         processor_dir.mkdir(parents=True, exist_ok=True)
 
+        if self.cfg.use_pretrained_tokenizer:
+            processor_kwargs = {}
+            if self.cfg.target_lang:
+                processor_kwargs["target_lang"] = self.cfg.target_lang
+            processor = self.AutoProcessor.from_pretrained(self.cfg.processor_name_or_path, **processor_kwargs)
+            if self.cfg.target_lang and hasattr(processor.tokenizer, "set_target_lang"):
+                processor.tokenizer.set_target_lang(self.cfg.target_lang)
+            processor.save_pretrained(processor_dir)
+            self.processor = processor
+            self.feature_extractor = processor.feature_extractor
+            return
+
+        self.feature_extractor = self.Wav2Vec2FeatureExtractor.from_pretrained(self.cfg.processor_name_or_path)
         vocab = self._build_vocab(rows, text_column=text_column)
         (processor_dir / "vocab.json").write_text(json.dumps(vocab, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -344,12 +485,26 @@ class RealCTCBackend:
         if self.processor is None:
             raise RuntimeError("Processor must be built before model initialization.")
 
+        model_kwargs = {
+            "pad_token_id": self.processor.tokenizer.pad_token_id,
+            "ctc_loss_reduction": "mean",
+        }
+        if self.cfg.use_pretrained_tokenizer:
+            if self.cfg.target_lang:
+                model_kwargs["target_lang"] = self.cfg.target_lang
+            self.model = self.Wav2Vec2ForCTC.from_pretrained(
+                self.cfg.init_model_name_or_path,
+                **model_kwargs,
+            )
+            if self.cfg.target_lang and hasattr(self.model, "load_adapter"):
+                self.model.load_adapter(self.cfg.target_lang)
+            return
+
         self.model = self.Wav2Vec2ForCTC.from_pretrained(
             self.cfg.init_model_name_or_path,
             vocab_size=len(self.processor.tokenizer),
-            pad_token_id=self.processor.tokenizer.pad_token_id,
-            ctc_loss_reduction="mean",
             ignore_mismatched_sizes=True,
+            **model_kwargs,
         )
 
     def _build_dataset(
@@ -365,6 +520,8 @@ class RealCTCBackend:
 
         if self.processor is None:
             raise RuntimeError("Processor must be built before dataset preparation.")
+        if self.feature_extractor is None:
+            raise RuntimeError("Feature extractor must be initialized before dataset preparation.")
 
         examples = []
         for row, resolved_audio_path in zip(rows, audio_paths):
@@ -374,6 +531,7 @@ class RealCTCBackend:
 
         ds = Dataset.from_list(examples)
         processor = self.processor
+        feature_extractor = self.feature_extractor
         target_sr = 16000
 
         def _prep(example: Dict[str, str]) -> Dict[str, List[int] | List[float]]:
@@ -388,13 +546,21 @@ class RealCTCBackend:
                 audio_array = librosa.resample(audio_array, orig_sr=sampling_rate, target_sr=target_sr)
                 sampling_rate = target_sr
 
-            input_values = processor.feature_extractor(
+            input_values = feature_extractor(
                 audio_array,
                 sampling_rate=sampling_rate,
             ).input_values[0]
 
-            normalized_text = self._normalize_transcript(example[text_column]).replace(" ", "|")
-            labels = processor.tokenizer(normalized_text).input_ids
+            if self.cfg.ctc_label_mode == "grapheme":
+                labels = processor.tokenizer(
+                    self._encode_uneme_graphemes(example[text_column]),
+                    is_split_into_words=True,
+                ).input_ids
+            else:
+                normalized_text = self._normalize_transcript(example[text_column])
+                if not self.cfg.use_pretrained_tokenizer:
+                    normalized_text = normalized_text.replace(" ", "|")
+                labels = processor.tokenizer(normalized_text).input_ids
 
             return {
                 "input_values": input_values,
@@ -457,10 +623,24 @@ class RealCTCBackend:
             label_ids = pred.label_ids
             label_ids = np.where(label_ids == -100, processor.tokenizer.pad_token_id, label_ids)
 
-            pred_str = processor.batch_decode(pred_ids)
-            label_str = processor.batch_decode(label_ids, group_tokens=False)
-            pred_str = [text.replace("|", " ").strip() for text in pred_str]
-            label_str = [text.replace("|", " ").strip() for text in label_str]
+            if self.cfg.ctc_label_mode == "grapheme":
+                pred_str = processor.batch_decode(pred_ids, group_tokens=True)
+                label_str = processor.batch_decode(label_ids, group_tokens=False)
+                pred_str = [" ".join(text.split()).replace("|", " ").strip() for text in pred_str]
+                label_str = [" ".join(text.split()).replace("|", " ").strip() for text in label_str]
+            else:
+                decode_kwargs = {"group_tokens": False} if not self.cfg.use_pretrained_tokenizer else {}
+                pred_str = processor.batch_decode(pred_ids)
+                label_str = processor.batch_decode(label_ids, **decode_kwargs)
+                if not self.cfg.use_pretrained_tokenizer:
+                    pred_str = [text.replace("|", " ").strip() for text in pred_str]
+                    label_str = [text.replace("|", " ").strip() for text in label_str]
+                else:
+                    pred_str = [text.strip() for text in pred_str]
+                    label_str = [text.strip() for text in label_str]
+            if not self.cfg.use_pretrained_tokenizer and self.cfg.ctc_label_mode != "grapheme":
+                pred_str = [text.replace("|", " ").strip() for text in pred_str]
+                label_str = [text.replace("|", " ").strip() for text in label_str]
             return {"wer": wer(label_str, pred_str), "cer": cer(label_str, pred_str)}
 
         has_eval = dev_ds is not None and len(dev_ds) > 0
@@ -502,8 +682,15 @@ class RealCTCBackend:
 
         pred_output = trainer.predict(test_ds)
         pred_ids = np.argmax(pred_output.predictions, axis=-1)
-        predictions = processor.batch_decode(pred_ids)
-        predictions = [text.replace("|", " ").strip() for text in predictions]
+        if self.cfg.ctc_label_mode == "grapheme":
+            predictions = processor.batch_decode(pred_ids, group_tokens=True)
+            predictions = [" ".join(text.split()).replace("|", " ").strip() for text in predictions]
+        else:
+            predictions = processor.batch_decode(pred_ids)
+        if not self.cfg.use_pretrained_tokenizer and self.cfg.ctc_label_mode != "grapheme":
+            predictions = [text.replace("|", " ").strip() for text in predictions]
+        elif self.cfg.ctc_label_mode != "grapheme":
+            predictions = [text.strip() for text in predictions]
 
         refs = [self._normalize_transcript(row[text_column]) for row in test_rows]
         metrics = {
