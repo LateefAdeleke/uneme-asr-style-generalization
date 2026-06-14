@@ -8,7 +8,7 @@ from pathlib import Path
 from asr_pipeline.runner import run_pipeline
 
 
-ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E1f", "E2f", "E3f"}
+ALLOWED_EXPERIMENTS = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E1f", "E2f", "E3f"}
 EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
     "E1": "main",
     "E2": "main",
@@ -20,6 +20,8 @@ EXPECTED_SPLIT_REGIME_BY_EXPERIMENT = {
     "E8": "main",
     "E9": "reverse_aux",
     "E10": "mixed_to_constrained_aux",
+    "E11": "mixed_to_constrained_aux",
+    "E12": "mixed_to_constrained_aux",
     "E1f": "main",
     "E2f": "main",
     "E3f": "main"
@@ -32,7 +34,8 @@ def _parse_experiments(raw: str) -> list[str]:
         raise ValueError("At least one experiment must be provided.")
     invalid = [e for e in exps if e not in ALLOWED_EXPERIMENTS]
     if invalid:
-        raise ValueError(f"Only E1,E2,E3,E4,E5,E6,E7,E8, E9, E10 are supported. Invalid: {invalid}")
+        supported = ",".join(sorted(ALLOWED_EXPERIMENTS))
+        raise ValueError(f"Only {supported} are supported. Invalid: {invalid}")
     return exps
 
 
@@ -87,10 +90,10 @@ def build_runtime_config(args: argparse.Namespace) -> dict:
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
-    parser = argparse.ArgumentParser(description="Run Whisper pipeline for E1/E2/E3/E4/E5/E6/E7/E8/E9/E10")
+    parser = argparse.ArgumentParser(description="Run the configured Whisper experiments")
     parser.add_argument("--project-root", type=Path, default=repo_root)
     parser.add_argument("--registry", default="configs/experiment_registry.yaml")
-    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5,E6,E7,E8, E9, E10, E1f, E2f, E3f")
+    parser.add_argument("--experiments", default="E1,E2,E3,E4,E5,E6,E7,E8,E9,E10,E11,E12,E1f,E2f,E3f")
     parser.add_argument("--text-column", default="transcription")
     parser.add_argument("--logs-root", default="results/logs")
     parser.add_argument("--aggregate-metrics", default="results/aggregate_metrics_e1_e3.json")
