@@ -1,4 +1,4 @@
-# Run Commands for Whisper E1 / E2 / E3 / E4 / E5
+# Run Commands for Whisper Experiments
 
 This file provides exact local commands for running the current Whisper pipeline.
 
@@ -76,6 +76,12 @@ $env:PYTHONPATH = "src"
 python scripts/run_whisper_pipeline.py --experiments E5 --smoke-test --skip-audio-check --smoke-max-rows 8
 ```
 
+### E11/E12 constrained-only smoke
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_whisper_pipeline.py --experiments E11,E12 --smoke-test --skip-audio-check --smoke-max-rows 8
+```
+
 ### Yoruba adaptation smoke
 ```powershell
 $env:PYTHONPATH = "src"
@@ -99,7 +105,7 @@ Notes:
 
 - `run_mms_pipeline.py` keeps Whisper untouched and is intended for **diagnostic CTC baselines only** in the current project direction.
 - MMS is currently wired for the direct fine-tuning split conditions `E1-E5`.
-- `E6-E10` remain reserved for the Yoruba-initialized transfer condition used by Whisper.
+- `E6-E10` and `E12` use the Yoruba-initialized transfer condition reserved for Whisper.
 - Under the current low-resource setup, the CTC-based systems did not reach a strong enough performance regime for the main paper comparisons, so prioritize Whisper for reported experiments.
 
 ### E1 real training
@@ -172,6 +178,33 @@ python scripts/run_whisper_pipeline.py `
   --learning-rate 1e-4
 ```
 
+### E11 constrained-to-constrained training
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_whisper_pipeline.py `
+  --experiments E11 `
+  --project-root . `
+  --registry configs/experiment_registry.yaml `
+  --model-name-or-path openai/whisper-small `
+  --num-train-epochs 3 `
+  --per-device-train-batch-size 8 `
+  --per-device-eval-batch-size 8 `
+  --learning-rate 1e-4
+```
+
+### E12 transfer + constrained-to-constrained training
+```powershell
+$env:PYTHONPATH = "src"
+python scripts/run_whisper_pipeline.py `
+  --experiments E12 `
+  --project-root . `
+  --registry configs/experiment_registry.yaml `
+  --num-train-epochs 3 `
+  --per-device-train-batch-size 8 `
+  --per-device-eval-batch-size 8 `
+  --learning-rate 1e-4
+```
+
 ### Yoruba adaptation full training
 ```powershell
 $env:PYTHONPATH = "src"
@@ -215,6 +248,8 @@ For each experiment, outputs are written to the experiment `output_dir` from the
 - `E3`: `results/E3_mix2nat_main_noXfer/`
 - `E4`: `results/E4_nat2cons_rev_noXfer/`
 - `E5`: `results/E5_mix2cons_aux_noXfer/`
+- `E11`: `results/E11_cons2cons_aux_noXfer/`
+- `E12`: `results/E12_cons2cons_aux_xfer/`
 - `Yoruba adaptation`: `results/yoruba_pretrain/`
 
 Inside each experiment directory:
@@ -276,9 +311,9 @@ python scripts/run_whisper_pipeline.py --experiments E1,E2,E3,E4,E5 --aggregate-
 
 ### Can I run multiple experiments together?
 
-Yes. The current pipeline accepts any comma-separated subset of `E1,E2,E3,E4,E5`.
+Yes. The Whisper pipeline accepts any comma-separated subset of `E1-E12` and the frozen-encoder variants `E1f-E3f`.
 
 ```powershell
 $env:PYTHONPATH = "src"
-python scripts/run_whisper_pipeline.py --experiments E1,E2,E3,E4,E5 --smoke-test --skip-audio-check --smoke-max-rows 8
+python scripts/run_whisper_pipeline.py --experiments E11,E12 --smoke-test --skip-audio-check --smoke-max-rows 8
 ```
