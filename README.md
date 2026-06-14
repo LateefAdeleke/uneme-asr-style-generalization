@@ -130,6 +130,12 @@ These provide supporting evidence under constrained evaluation.
 * Test: constrained
 * Split: `mixed_to_constrained_aux`
 
+#### E11 — Constrained → Constrained
+
+* Train/dev/test: constrained only
+* Split: `mixed_to_constrained_aux`
+* Speaker-overlap diagnostic
+
 ---
 
 ### Tier 3: Cross-lingual Transfer (Primary + Supplementary)
@@ -163,6 +169,11 @@ These test whether transfer appears stronger under easier evaluation conditions.
 #### E10 — Transfer + Mixed → Constrained
 
 * Split: `mixed_to_constrained_aux`
+
+#### E12 — Transfer + Constrained → Constrained
+
+* Split: `mixed_to_constrained_aux`
+* Speaker-overlap diagnostic
 
 ---
 
@@ -202,6 +213,8 @@ W_E7_cons2nat_main_xfer
 W_E8_mix2nat_main_xfer
 W_E9_nat2cons_rev_xfer
 W_E10_mix2cons_aux_xfer
+W_E11_cons2cons_aux_noXfer
+W_E12_cons2cons_aux_xfer
 ```
 
 For MMS:
@@ -236,6 +249,11 @@ M_E1_...
 9. E9
 10. E10
 
+### Phase 5 - Constrained-only controls
+
+11. E11
+12. E12
+
 ---
 
 ## Key Comparisons
@@ -246,6 +264,8 @@ M_E1_...
 * **E8 vs E7** → does mixed stabilize transfer?
 * **E6 vs E9** → does transfer perform better on constrained vs naturalistic?
 * **E8 vs E10** → does mixed transfer benefit more on constrained?
+* **E11 vs E5** → does mixed training improve constrained evaluation?
+* **E12 vs E11** → does transfer help in constrained-only training and evaluation?
 
 ---
 
@@ -284,6 +304,6 @@ results/<experiment_id>/
 
 The **main split (E1–E3, E6–E8)** drives the paper’s contribution.
 
-Experiments targeting constrained speech (E4, E5, E9, E10) are included as **diagnostic and supplementary analyses** to contextualize performance differences across evaluation conditions.
+Experiments targeting constrained speech (E4, E5, E9-E12) are included as **diagnostic and supplementary analyses** to contextualize performance differences across evaluation conditions. E11/E12 are speaker-overlap diagnostics, not unseen-speaker evaluations.
 
 Focus on clarity, reproducibility, and clean comparisons.
