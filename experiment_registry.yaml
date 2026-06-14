@@ -173,7 +173,7 @@ transfer_setups:
 
   cross_lingual_transfer:
     enabled: true
-    source_checkpoint: "REPLACE_WITH_SOURCE_CHECKPOINT"
+    source_checkpoint: "source_checkpoint: "results_whisper/yoruba_pretrain/checkpoint-3520""
     notes: "Initialize from cross-lingually adapted checkpoint before target-language fine-tuning"
 
 training:
