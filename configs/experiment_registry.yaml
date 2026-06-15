@@ -139,6 +139,34 @@ experiments:
     test_manifest: "data/metadata/mixed_to_constrained_aux/test_constrained.csv"
     output_dir: "results/E10_mix2cons_aux_xfer"
 
+  E11:
+    experiment_id: "E11_cons2cons_aux_noXfer"
+    description: "Constrained-only training evaluated on constrained speech"
+    split_regime: "mixed_to_constrained_aux"
+    model_family: "whisper"
+    transfer_condition: "no_transfer"
+    train_condition: "constrained"
+    dev_condition: "constrained"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/mixed_to_constrained_aux/train_constrained.csv"
+    dev_manifest: "data/metadata/mixed_to_constrained_aux/dev_constrained.csv"
+    test_manifest: "data/metadata/mixed_to_constrained_aux/test_constrained.csv"
+    output_dir: "results/E11_cons2cons_aux_noXfer"
+
+  E12:
+    experiment_id: "E12_cons2cons_aux_xfer"
+    description: "Transfer + constrained-only training evaluated on constrained speech"
+    split_regime: "mixed_to_constrained_aux"
+    model_family: "whisper"
+    transfer_condition: "cross_lingual_transfer"
+    train_condition: "constrained"
+    dev_condition: "constrained"
+    test_condition: "constrained"
+    train_manifest: "data/metadata/mixed_to_constrained_aux/train_constrained.csv"
+    dev_manifest: "data/metadata/mixed_to_constrained_aux/dev_constrained.csv"
+    test_manifest: "data/metadata/mixed_to_constrained_aux/test_constrained.csv"
+    output_dir: "results/E12_cons2cons_aux_xfer"
+
 defaults:
   model_family: "whisper"
   transfer_condition: "no_transfer"
@@ -185,8 +213,8 @@ transfer_setups:
 
   cross_lingual_transfer:
     enabled: true
-    # TEMPORARY for pipeline validation only: replace with the saved Yoruba-adapted Whisper checkpoint before real E6-E10 runs.
-    source_checkpoint: "openai/whisper-small"
+    # TEMPORARY for pipeline validation only: replace with the saved Yoruba-adapted Whisper checkpoint before real E6-E12 runs.
+    source_checkpoint: "results_whisper/yoruba_pretrain/checkpoint-3520"
     notes: "Initialize from cross-lingually adapted checkpoint before target-language fine-tuning"
 
 training:
