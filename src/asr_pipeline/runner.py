@@ -135,7 +135,9 @@ def _build_whisper_training_config(
         ),
         num_train_epochs=float(runtime.get("num_train_epochs", training_cfg["num_train_epochs"])),
         eval_strategy=str(runtime.get("evaluation_strategy", training_cfg["evaluation_strategy"])),
-        save_strategy=str(runtime.get("save_strategy", training_cfg["save_strategy"])),
+        save_strategy=(
+            "no" if smoke_test else str(runtime.get("save_strategy", training_cfg["save_strategy"]))
+        ),
         logging_strategy=str(runtime.get("logging_strategy", training_cfg["logging_strategy"])),
         logging_steps=int(runtime.get("logging_steps", training_cfg["logging_steps"])),
         save_total_limit=int(runtime.get("save_total_limit", training_cfg["save_total_limit"])),
