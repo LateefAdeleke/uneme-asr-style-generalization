@@ -218,7 +218,23 @@ def run_pipeline(runtime_config_path: str) -> List[Dict[str, Any]]:
     for exp_key in selected:
         exp = experiments_cfg[exp_key]
 
-        if exp_key not in {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E1f", "E2f", "E3f"}:
+        if exp_key not in {
+            "E1",
+            "E2",
+            "E3",
+            "E4",
+            "E5",
+            "E6",
+            "E7",
+            "E8",
+            "E9",
+            "E10",
+            "E11",
+            "E12",
+            "E1f",
+            "E2f",
+            "E3f",
+        }:
             raise ValueError(f"Unsupported experiment for this pipeline: {exp_key}")
 
         model_family = str(model_family_override or exp["model_family"])
