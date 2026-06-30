@@ -213,7 +213,7 @@ transfer_setups:
 
   cross_lingual_transfer:
     enabled: true
-    # TEMPORARY for pipeline validation only: replace with the saved Yoruba-adapted Whisper checkpoint before real E6-E12 runs.
+    # The saved Yoruba-adapted Whisper checkpoint before real E6-E12 runs.
     source_checkpoint: "results_whisper/yoruba_pretrain/checkpoint-3520"
     notes: "Initialize from cross-lingually adapted checkpoint before target-language fine-tuning"
 
