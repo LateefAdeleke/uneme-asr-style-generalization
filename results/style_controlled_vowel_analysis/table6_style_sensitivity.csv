@@ -1,0 +1,25 @@
+rank,pair,transfer_condition,vowel,naturalistic_experiment,constrained_experiment,naturalistic_accuracy,constrained_accuracy,accuracy_difference_naturalistic_minus_constrained,dominant_naturalistic_confusion,interpretation_label
+1,E3_vs_E5,no_transfer,in,E3,E5,0.2893923789907312,0.6666666666666666,-0.3772742876759354,"in->i (336, 34.60%)",High degradation
+2,E3_vs_E5,no_transfer,an,E3,E5,0.36199095022624433,0.6511627906976745,-0.28917184047143013,"an->a (205, 30.92%)",High degradation
+3,E3_vs_E5,no_transfer,u,E3,E5,0.45441176470588235,0.7297297297297297,-0.27531796502384737,"u->o (251, 12.30%)",High degradation
+4,E3_vs_E5,no_transfer,e,E3,E5,0.5874813074129459,0.7972027972027972,-0.20972148978985128,"e->i (736, 15.72%)",High degradation
+5,E3_vs_E5,no_transfer,i,E3,E5,0.6170329670329671,0.7823529411764706,-0.16531997414350352,"i->e (523, 9.58%)",High degradation
+6,E3_vs_E5,no_transfer,o,E3,E5,0.5849862679279829,0.7354497354497355,-0.15046346752175255,"o-><eps> (286, 8.73%)",High degradation
+7,E3_vs_E5,no_transfer,a,E3,E5,0.7832641770401106,0.8422619047619048,-0.058997727721794124,"a-><eps> (403, 5.57%)",Moderate degradation
+8,E3_vs_E5,no_transfer,un,E3,E5,0.3912175648702595,0.3181818181818182,0.07303574668844132,"un->a (63, 12.57%)",No naturalistic degradation
+9,E3_vs_E5,no_transfer,ẹ,E3,E5,,0.6136363636363636,,none,No reference tokens
+10,E3_vs_E5,no_transfer,ọ,E3,E5,,0.35714285714285715,,none,No reference tokens
+11,E3_vs_E5,no_transfer,ẹn,E3,E5,,0.6666666666666666,,none,No reference tokens
+12,E3_vs_E5,no_transfer,ọn,E3,E5,,0.3333333333333333,,none,No reference tokens
+1,E8_vs_E10,transfer,an,E8,E10,0.3152337858220211,0.7441860465116279,-0.4289522606896068,"an->a (222, 33.48%)",High degradation
+2,E8_vs_E10,transfer,in,E8,E10,0.31822863027806386,0.7301587301587301,-0.41193009988066626,"in->i (310, 31.93%)",High degradation
+3,E8_vs_E10,transfer,u,E8,E10,0.43137254901960786,0.6959459459459459,-0.2645733969263381,"u->o (300, 14.71%)",High degradation
+4,E8_vs_E10,transfer,e,E8,E10,0.5778679769280068,0.8041958041958042,-0.22632782726779732,"e->i (731, 15.62%)",High degradation
+5,E8_vs_E10,transfer,o,E8,E10,0.5797985962770827,0.7407407407407407,-0.16094214446365795,"o->a (282, 8.61%)",High degradation
+6,E8_vs_E10,transfer,i,E8,E10,0.6166666666666667,0.75,-0.1333333333333333,"i->e (518, 9.49%)",Moderate degradation
+7,E8_vs_E10,transfer,un,E8,E10,0.32934131736526945,0.45454545454545453,-0.12520413718018508,"un->a (71, 14.17%)",Moderate degradation
+8,E8_vs_E10,transfer,a,E8,E10,0.7800829875518672,0.8541666666666666,-0.0740836791147994,"a->i (398, 5.50%)",Moderate degradation
+9,E8_vs_E10,transfer,ẹ,E8,E10,,0.6363636363636364,,none,No reference tokens
+10,E8_vs_E10,transfer,ọ,E8,E10,,0.21428571428571427,,none,No reference tokens
+11,E8_vs_E10,transfer,ẹn,E8,E10,,0.7777777777777778,,none,No reference tokens
+12,E8_vs_E10,transfer,ọn,E8,E10,,0.3333333333333333,,none,No reference tokens
